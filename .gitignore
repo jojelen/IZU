@@ -1,0 +1,6 @@
+*.swp
+build
+deps
+res
+.vscode
+BACKLOG
