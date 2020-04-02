@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "bmp.h"
 
 #include <fstream>
 #include <iostream>
@@ -49,6 +50,7 @@ std::vector<uint8_t> decode_bmp(const uint8_t *input, int row_size, int width,
       }
     }
   }
+  writeBmp(width, height, channels, output, "decoded.bmp");
   return output;
 }
 

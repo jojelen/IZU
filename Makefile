@@ -30,11 +30,11 @@ LDFLAGS+=-L/usr/local/lib `pkg-config --cflags --libs opencv`
 
 # Tensorflow Lite
 CXXFLAGS+=-Ideps/include
-LDFLAGS+=-L/home/jojelen/Code/c2n2/deps/lib -ltensorflow-lite
+LDFLAGS+=-Ldeps/lib -ltensorflow-lite
 
 LIBNAME=IZU
 LIBS=lib$(LIBNAME).a
-PROG=tflitex
+PROG=tflitex main
 
 .PHONY: lib clean cleanall
 

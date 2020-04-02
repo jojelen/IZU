@@ -42,6 +42,7 @@ struct ColorHeader {
   uint32_t unused[16]{0};                 // Unused data for sRGB color space.
 };
 
+// Class for managing import/export bmp pictures
 class BMP {
 public:
   BMP();
@@ -49,14 +50,16 @@ public:
   ~BMP();
 
   void read(const char *file);
-  void write(const char *file);
+  void write(const char *file) const;
   void printInfo() const;
+  void addData(size_t width, size_t height, const vector<uint8_t> &data);
 
 private:
   void checkColorHeaderFormat(ColorHeader &mColorHeader);
   void writeHeadersAndData(ofstream &of);
   uint32_t makeStrideAligned(uint32_t align_stride);
 
+  void overwriteHeaders();
   void readHeaders(ifstream &inp);
   void readData(ifstream &inp);
   void writeHeaders(ofstream &of);
@@ -108,11 +111,24 @@ void BMP::read(const char *file) {
   inp.seekg(HEADER_SIZE + mDibHeader.size, ios::beg);
 
   // Overwrite size info, since we may throw away some info.
+  overwriteHeaders();
+
+  readData(inp);
+}
+
+void BMP::overwriteHeaders() {
   mDibHeader.size = DIB_HEADER_SIZE + COLOR_HEADER_SIZE;
   mFileHeader.offset_data = HEADER_SIZE + DIB_HEADER_SIZE + COLOR_HEADER_SIZE;
   mFileHeader.file_size = mFileHeader.offset_data;
+}
 
-  readData(inp);
+void BMP::addData(size_t width, size_t height, const vector<uint8_t> &data) {
+  overwriteHeaders();
+  mFileHeader.file_size = mFileHeader.offset_data + data.size();
+  mDibHeader.width = static_cast<int32_t>(width);
+  mDibHeader.height = static_cast<int32_t>(height);
+  mDibHeader.size_image = static_cast<uint32_t>(data.size());
+  mData = data;
 }
 
 void BMP::readData(ifstream &inp) {
@@ -156,7 +172,7 @@ void BMP::readData(ifstream &inp) {
   mFileHeader.file_size += mData.size();
 }
 
-void BMP::write(const char *file) {
+void BMP::write(const char *file) const {
   ofstream of{file, std::ios_base::binary};
   if (!of)
     errExit("Can't open the output image file.");
@@ -211,11 +227,24 @@ void BMP::printInfo() const {
   }
 }
 
-void testBmpClass() {
-  BMP image("res/Shapes.bmp");
-  image.write("Shapes_copy.bmp");
-  BMP image2("res/midsommer.bmp");
-  image2.write("midsommer_copy.bmp");
-  BMP image3("square.bmp");
-  image3.write("square_copy.bmp");
+void writeBmp(size_t width, size_t height, size_t channels,
+              const std::vector<uint8_t> &data, const char *fileName) {
+  BMP image;
+  if (channels == 4) {
+    image.addData(width, height, data);
+  } else if (channels == 3) {
+    vector<uint8_t> newData;
+    size_t pixels = width * height * channels;
+    for (size_t i = 0; i < pixels; i += 3) {
+      newData.push_back(data[i + 2]);
+      newData.push_back(data[i + 1]);
+      newData.push_back(data[i]);
+      newData.push_back(255);
+    }
+    image.addData(width, height, newData);
+  } else {
+    errExit("Invalid channels argument for creating bmp.");
+  }
+
+  image.write(fileName);
 }

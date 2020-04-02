@@ -63,7 +63,7 @@ void showWebCam() {
     if (frame.empty())
       break;
 
-    tfLite.runInference(frame);
+    // tfLite.runInference(frame);
     // printFrameInfo(frame);
     // paintRow(frame, 0, 0);
     cv::namedWindow("Webcam");
@@ -86,6 +86,6 @@ cv::Mat getFrame() {
 
 int main(int argc, char **argv) {
   showWebCam();
-  testBmpClass();
+
   return 0;
 }
