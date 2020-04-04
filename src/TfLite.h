@@ -5,18 +5,18 @@
 #include "tensorflow/lite/model.h"
 
 class TfLite {
-public:
-  TfLite();
-  ~TfLite();
+  public:
+    TfLite();
+    ~TfLite();
 
-  void loadModel(const char *modelFile);
-  void runInference(const char *inputFile);
-  void runInference(const cv::Mat &frame);
+    void loadModel(const char *modelFile);
+    void runInference(const char *inputFile);
+    void runInference(const cv::Mat &frame);
 
-  void printOps() const;
+    void printOps() const;
 
-private:
-  void printInterpreterInfo() const;
-  std::unique_ptr<tflite::FlatBufferModel> mModel;
-  std::unique_ptr<tflite::Interpreter> mInterpreter;
+  private:
+    void printInterpreterInfo() const;
+    std::unique_ptr<tflite::FlatBufferModel> mModel;
+    std::unique_ptr<tflite::Interpreter> mInterpreter;
 };
