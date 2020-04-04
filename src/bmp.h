@@ -5,3 +5,5 @@
 
 void writeBmp(size_t width, size_t height, size_t channels,
               const std::vector<uint8_t> &data, const char *fileName);
+
+std::vector<uint8_t> readBmp(const char *fileName);

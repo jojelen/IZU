@@ -16,7 +16,10 @@ class TfLite {
     void printOps() const;
 
   private:
+    void loadBmpImage(const char *bmpFile);
+    void printInputOutputInfo() const;
     void printInterpreterInfo() const;
+    void printTopResults() const;
     std::unique_ptr<tflite::FlatBufferModel> mModel;
     std::unique_ptr<tflite::Interpreter> mInterpreter;
 };

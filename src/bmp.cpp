@@ -22,13 +22,13 @@ struct DIBHeader {
     // (if negative, top-down, with origin in upper left corner)
 
     uint16_t planes = 1;
-    uint16_t bit_count = 32; // No. of bits per pixel.
+    uint16_t bpp = 32; // No. of bytes per pixel.
     uint32_t compression = 3;
     uint32_t size_image = 0; // 0 - for uncompressed images.
     int32_t x_pixels_per_meter = 0;
     int32_t y_pixels_per_meter = 0;
     uint32_t colors_used = 0; // No. color indexes in the color table. Use 0 for
-                              // the max number of colors allowed by bit_count.
+                              // the max number of colors allowed by bpp.
     uint32_t colors_important = 0; // No. of colors used for displaying the
                                    // bitmap. If 0 all colors are required.
 };
@@ -53,6 +53,7 @@ class BMP {
     void write(const char *file) const;
     void printInfo() const;
     void addData(size_t width, size_t height, const vector<uint8_t> &data);
+    vector<uint8_t> getData() const { return mData; };
 
   private:
     void checkColorHeaderFormat(ColorHeader &mColorHeader);
@@ -89,7 +90,7 @@ void BMP::readHeaders(ifstream &inp)
     inp.read((char *)&mDibHeader, DIB_HEADER_SIZE);
 
     // Color header
-    if (mDibHeader.bit_count == 32) {
+    if (mDibHeader.bpp == 32) {
         if (mDibHeader.size >= (DIB_HEADER_SIZE + COLOR_HEADER_SIZE)) {
             inp.read((char *)&mColorHeader, COLOR_HEADER_SIZE);
             checkColorHeaderFormat(mColorHeader);
@@ -146,7 +147,7 @@ void BMP::readData(ifstream &inp)
     size_t nrPixels = mDibHeader.width * mDibHeader.height;
     mData.resize(nrPixels * 4 /* bytes per pixel */);
 
-    switch (mDibHeader.bit_count) {
+    switch (mDibHeader.bpp) {
     case 32: {
         inp.read((char *)mData.data(), mData.size());
         break;
@@ -168,7 +169,7 @@ void BMP::readData(ifstream &inp)
             }
             inp.read(reinterpret_cast<char *>(temp.data()), temp.size());
         }
-        mDibHeader.bit_count = 32;
+        mDibHeader.bpp = 32;
         mDibHeader.compression = 3;
         break;
     }
@@ -222,14 +223,14 @@ void BMP::printInfo() const
          << "\nsize = " << mDibHeader.size << "\nwidth = " << mDibHeader.width
          << "\nheight = " << mDibHeader.height
          << "\nplanes = " << mDibHeader.planes
-         << "\nbit count = " << mDibHeader.bit_count
+         << "\nbit count = " << mDibHeader.bpp
          << "\ncompression = " << mDibHeader.compression
          << "\nsize image = " << mDibHeader.size_image
          << "\nx ppm = " << mDibHeader.x_pixels_per_meter
          << "\ny ppm = " << mDibHeader.y_pixels_per_meter
          << "\ncolors used = " << mDibHeader.colors_used
          << "\ncolors important = " << mDibHeader.colors_important << "\n";
-    if (mDibHeader.bit_count == 32) {
+    if (mDibHeader.bpp == 32) {
         cout << "Color header (" << COLOR_HEADER_SIZE << " bytes):"
              << "\nred mask = " << hex << mColorHeader.red_mask
              << "\ngreen mask = " << mColorHeader.green_mask
@@ -263,4 +264,10 @@ void writeBmp(size_t width, size_t height, size_t channels,
     }
 
     image.write(fileName);
+}
+
+vector<uint8_t> readBmp(const char *fileName)
+{
+    BMP image(fileName);
+    return image.getData();
 }
