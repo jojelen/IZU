@@ -18,6 +18,7 @@ class TfLite {
   private:
     // Loads a BMP image into the loaded models input tensor.
     void loadBmpImage(const char *bmpFile);
+    void loadFrame(const cv::Mat &frame);
     void printInputOutputInfo() const;
     void printInterpreterInfo() const;
     void printTopResults() const;

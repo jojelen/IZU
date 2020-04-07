@@ -2,6 +2,7 @@
 // g++ -o main main.cpp -I/usr/local/include/opencv4
 //      -L/usr/local/lib `pkg-config --CXXFLAGS --libs opencv`
 #include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/types_c.h"
 #include "opencv2/opencv.hpp"
 
 #include "TfLite.h"
@@ -61,12 +62,13 @@ void showWebCam()
     TfLite tfLite;
     tfLite.loadModel("res/mobilenet_v2_1.0_224_quant.tflite");
     for (;;) {
-        cv::Mat frame;
+        cv::Mat frame, RGBframe;
         cap >> frame;
         if (frame.empty())
             break;
+        cv::cvtColor(frame, RGBframe, CV_BGR2RGB);
+        tfLite.runInference(RGBframe);
 
-        // tfLite.runInference(frame);
         // printFrameInfo(frame);
         // paintRow(frame, 0, 0);
         cv::namedWindow("Webcam");

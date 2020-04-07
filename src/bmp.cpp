@@ -198,7 +198,7 @@ void BMP::write(const char *file) const
     if (!of)
         errExit("Can't open the output image file.");
 
-    printInfo();
+    // printInfo(); //DEBUG
     of.write((const char *)&mFileHeader, HEADER_SIZE);
     of.write((const char *)&mDibHeader, DIB_HEADER_SIZE);
     of.write((const char *)&mColorHeader, COLOR_HEADER_SIZE);

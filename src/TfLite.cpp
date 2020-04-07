@@ -72,91 +72,16 @@ void TfLite::printOps() const
 
 void TfLite::runInference(const cv::Mat &frame)
 {
-    const vector<int> inputs = mInterpreter->inputs();
-    const vector<int> outputs = mInterpreter->outputs();
-
     if (mInterpreter->AllocateTensors() != kTfLiteOk)
         errExit("Failed allocating tensors.");
 
-    // PrintInterpreterState(mInterpreter.get());
-
-    int input = inputs[0];
-    cout << "input = " << input << "\n";
-
-    TfLiteIntArray *dims = mInterpreter->tensor(input)->dims;
-    cout << "input.dims.size = " << dims->size << "\n";
-    int wanted_height = dims->data[1];
-    int wanted_width = dims->data[2];
-    int wanted_channels = dims->data[3];
-    cout << "wanted_height = " << wanted_height << "\n";
-    cout << "wanted_width = " << wanted_width << "\n";
-    cout << "wanted_channels = " << wanted_channels << "\n";
-
-    // Loading bmp image into buffer
-    int image_width = 640;
-    int image_height = 480;
-    int image_channels = 3;
-    auto in = read_frame(frame);
-
-    switch (mInterpreter->tensor(input)->type) {
-    case kTfLiteFloat32:
-        cout << "The input should be in float32 format\n";
-        resize<float>(mInterpreter->typed_tensor<float>(input), in.data(),
-                      image_height, image_width, image_channels, wanted_height,
-                      wanted_width, wanted_channels);
-        break;
-    case kTfLiteUInt8:
-        cout << "The input should be in uint8 format\n";
-        resize<uint8_t>(mInterpreter->typed_tensor<uint8_t>(input), in.data(),
-                        image_height, image_width, image_channels,
-                        wanted_height, wanted_width, wanted_channels);
-        break;
-    default:
-        cout << "cannot handle input type " << mInterpreter->tensor(input)->type
-             << " yet";
-        exit(-1);
-    }
+    loadFrame(frame);
 
     // Running inference
     if (mInterpreter->Invoke() != kTfLiteOk)
         errExit("Failed to invoke tflite.");
 
-    std::vector<std::pair<float, int>> top_results;
-
-    int output = mInterpreter->outputs()[0];
-    TfLiteIntArray *output_dims = mInterpreter->tensor(output)->dims;
-    // assume output dims to be something like (1, 1, ... ,size)
-    auto output_size = output_dims->data[output_dims->size - 1];
-    int results = 10;
-    float threshold = 0.001;
-    switch (mInterpreter->tensor(output)->type) {
-    case kTfLiteFloat32:
-        get_top_n<float>(mInterpreter->typed_output_tensor<float>(0),
-                         output_size, results, threshold, &top_results, true);
-        break;
-    case kTfLiteUInt8:
-        get_top_n<uint8_t>(mInterpreter->typed_output_tensor<uint8_t>(0),
-                           output_size, results, threshold, &top_results,
-                           false);
-        break;
-    default:
-        errExit("cannot handle output type " +
-                to_string(mInterpreter->tensor(output)->type) + " yet");
-        exit(-1);
-    }
-
-    std::vector<string> labels;
-    size_t label_count;
-
-    ReadLabelsFile("res/imageClass/labels_mobilenet_quant_v1_224.txt", &labels,
-                   &label_count);
-
-    // Print top results
-    for (const auto &result : top_results) {
-        const float confidence = result.first;
-        const int index = result.second;
-        cout << confidence << ": " << index << " " << labels[index] << "\n";
-    }
+    printTopResults();
 }
 void TfLite::printInputOutputInfo() const
 {
@@ -186,6 +111,49 @@ void TfLite::printInputOutputInfo() const
         cout << "]\n";
     }
 }
+
+void TfLite::loadFrame(const cv::Mat &frame)
+{
+    const vector<int> inputs = mInterpreter->inputs();
+    const vector<int> outputs = mInterpreter->outputs();
+
+    int input = inputs[0]; // Index of input tensor;
+
+    TfLiteIntArray *dims = mInterpreter->tensor(input)->dims;
+
+    int wanted_height = dims->data[1];
+    int wanted_width = dims->data[2];
+    int wanted_channels = dims->data[3];
+
+    // Create uint8 vector of frame
+    int image_width = frame.cols;
+    int image_height = frame.rows;
+    int image_channels = 3;
+    cout << "image_width = " << image_width << "\n";
+    cout << "image_height = " << image_height << "\n";
+    cout << "image_channels = " << image_channels << "\n";
+
+    switch (mInterpreter->tensor(input)->type) {
+    case kTfLiteFloat32:
+        cout << "The input should be in float32 format\n";
+        resize<float>(mInterpreter->typed_tensor<float>(input), frame.data,
+                      image_height, image_width, image_channels, wanted_height,
+                      wanted_width, wanted_channels);
+        break;
+    case kTfLiteUInt8:
+        cout << "The input should be in uint8 format\n";
+        resize<uint8_t>(mInterpreter->typed_tensor<uint8_t>(input), frame.data,
+                        image_height, image_width, image_channels,
+                        wanted_height, wanted_width, wanted_channels);
+        writeBmp(wanted_width, wanted_height, wanted_channels,
+                 mInterpreter->typed_tensor<uint8_t>(input), "temp.bmp");
+        break;
+    default:
+        cout << "cannot handle input type " << mInterpreter->tensor(input)->type
+             << " yet";
+        exit(-1);
+    }
+}
 void TfLite::loadBmpImage(const char *bmpFile)
 {
     const vector<int> inputs = mInterpreter->inputs();
@@ -204,8 +172,6 @@ void TfLite::loadBmpImage(const char *bmpFile)
     int image_width = 0;
     int image_height = 0;
     int image_channels = 0;
-    // auto in = read_bmp(bmpFile, &image_width, &image_height,
-    // &image_channels);
     auto in = readBmp(bmpFile, &image_width, &image_height, &image_channels);
 
     switch (mInterpreter->tensor(input)->type) {

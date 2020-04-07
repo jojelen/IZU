@@ -15,8 +15,6 @@
 
 void errExit(const std::string_view &msg);
 
-std::vector<uint8_t> read_frame(const cv::Mat &frame);
-
 // Functions from Tensorflow's example
 template <class T>
 void resize(T *out, uint8_t *in, int image_height, int image_width,
@@ -129,12 +127,6 @@ void get_top_n(T *prediction, int prediction_size, size_t num_results,
     }
     std::reverse(top_results->begin(), top_results->end());
 }
-
-std::vector<uint8_t> decode_bmp(const uint8_t *input, int row_size, int width,
-                                int height, int channels, bool top_down);
-
-std::vector<uint8_t> read_bmp(const std::string &input_bmp_name, int *width,
-                              int *height, int *channels);
 
 void ReadLabelsFile(const std::string &file_name,
                     std::vector<std::string> *result,
