@@ -1,4 +1,5 @@
 #include "TfLite.h"
+#include "bmp.h"
 #include "utils.h"
 
 #include "tensorflow/lite/builtin_op_data.h"
@@ -37,6 +38,9 @@ void TfLite::printInterpreterInfo() const
 
 void TfLite::runInference(const char *inputFile)
 {
+    if (mInterpreter->AllocateTensors() != kTfLiteOk)
+        errExit("Failed allocating tensors.");
+
     loadBmpImage(inputFile);
 
     // Running inference
@@ -187,9 +191,6 @@ void TfLite::loadBmpImage(const char *bmpFile)
     const vector<int> inputs = mInterpreter->inputs();
     const vector<int> outputs = mInterpreter->outputs();
 
-    if (mInterpreter->AllocateTensors() != kTfLiteOk)
-        errExit("Failed allocating tensors.");
-
     int input = inputs[0]; // Index of input tensor;
 
     printInputOutputInfo();
@@ -200,10 +201,12 @@ void TfLite::loadBmpImage(const char *bmpFile)
     int wanted_channels = dims->data[3];
 
     // Loading bmp image into buffer
-    int image_width = 224;
-    int image_height = 224;
-    int image_channels = 3;
-    auto in = read_bmp(bmpFile, &image_width, &image_height, &image_channels);
+    int image_width = 0;
+    int image_height = 0;
+    int image_channels = 0;
+    // auto in = read_bmp(bmpFile, &image_width, &image_height,
+    // &image_channels);
+    auto in = readBmp(bmpFile, &image_width, &image_height, &image_channels);
 
     switch (mInterpreter->tensor(input)->type) {
     case kTfLiteFloat32:
@@ -217,6 +220,8 @@ void TfLite::loadBmpImage(const char *bmpFile)
         resize<uint8_t>(mInterpreter->typed_tensor<uint8_t>(input), in.data(),
                         image_height, image_width, image_channels,
                         wanted_height, wanted_width, wanted_channels);
+        writeBmp(wanted_width, wanted_height, wanted_channels,
+                 mInterpreter->typed_tensor<uint8_t>(input), "temp.bmp");
         break;
     default:
         cout << "cannot handle input type " << mInterpreter->tensor(input)->type

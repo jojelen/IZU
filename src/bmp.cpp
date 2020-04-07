@@ -53,6 +53,11 @@ class BMP {
     void write(const char *file) const;
     void printInfo() const;
     void addData(size_t width, size_t height, const vector<uint8_t> &data);
+    void addData(size_t width, size_t height, uint8_t *data, size_t len);
+
+    int getWidth() const { return static_cast<int>(mDibHeader.width); }
+    int getHeight() const { return static_cast<int>(mDibHeader.height); }
+    int getChannels() const;
     vector<uint8_t> getData() const { return mData; };
 
   private:
@@ -65,6 +70,11 @@ class BMP {
     void readData(ifstream &inp);
     void writeHeaders(ofstream &of);
     void writeData(ofstream &of);
+
+    // Get black BMP image when exporting 3 channel images (something missing
+    // in header?). Temp solution is to always convert to 4 channels before
+    // writing.
+    void convertTo4Channels();
 
     constexpr static size_t HEADER_SIZE = 14;
     constexpr static size_t DIB_HEADER_SIZE = 40;
@@ -81,13 +91,15 @@ BMP::BMP() {}
 BMP::BMP(const char *file) { read(file); }
 BMP::~BMP() {}
 
+int BMP::getChannels() const { return static_cast<int>(mDibHeader.bpp) / 8; }
+
 void BMP::readHeaders(ifstream &inp)
 {
-    inp.read((char *)&mFileHeader, HEADER_SIZE);
+    inp.read(reinterpret_cast<char *>(&mFileHeader), HEADER_SIZE);
     if (mFileHeader.file_type != 0x4D42)
         errExit("File type error when reading BMP.");
 
-    inp.read((char *)&mDibHeader, DIB_HEADER_SIZE);
+    inp.read(reinterpret_cast<char *>(&mDibHeader), DIB_HEADER_SIZE);
 
     // Color header
     if (mDibHeader.bpp == 32) {
@@ -110,13 +122,6 @@ void BMP::read(const char *file)
         errExit("Unable to open " + string(file));
 
     readHeaders(inp);
-
-    // Setting inp to point to data beginning
-    inp.seekg(HEADER_SIZE + mDibHeader.size, ios::beg);
-
-    // Overwrite size info, since we may throw away some info.
-    overwriteHeaders();
-
     readData(inp);
 }
 
@@ -137,6 +142,17 @@ void BMP::addData(size_t width, size_t height, const vector<uint8_t> &data)
     mData = data;
 }
 
+void BMP::addData(size_t width, size_t height, uint8_t *data, size_t len)
+{
+    overwriteHeaders();
+    mFileHeader.file_size = mFileHeader.offset_data + len;
+    mDibHeader.width = static_cast<int32_t>(width);
+    mDibHeader.height = static_cast<int32_t>(height);
+    mDibHeader.size_image = static_cast<uint32_t>(len);
+    mData.clear();
+    mData.insert(mData.begin(), data, data + len);
+}
+
 void BMP::readData(ifstream &inp)
 {
     if (mDibHeader.height < 0) {
@@ -144,41 +160,36 @@ void BMP::readData(ifstream &inp)
                 "origin in the bottom left corner!");
     }
 
-    size_t nrPixels = mDibHeader.width * mDibHeader.height;
-    mData.resize(nrPixels * 4 /* bytes per pixel */);
+    // Calc size of data in bytes.
+    inp.seekg(0, ios::end);
+    int end = inp.tellg();
+    size_t len = end - HEADER_SIZE - mDibHeader.size;
 
-    switch (mDibHeader.bpp) {
-    case 32: {
-        inp.read((char *)mData.data(), mData.size());
-        break;
-    }
-    case 24: {
-        // Transform data to 32bit BGRA format.
-        size_t padding = (((mDibHeader.width * 3) % 4) == 0)
-                             ? 0
-                             : 4 - ((mDibHeader.width * 3) % 4);
-        vector<uint8_t> temp(padding);
+    // Setting inp to point to data beginning and read into mData.
+    inp.seekg(HEADER_SIZE + mDibHeader.size, ios::beg);
+    mData.resize(len);
+    inp.read(reinterpret_cast<char *>(mData.data()), mData.size());
 
-        uint8_t *dataPtr = mData.data(); // Points to each pixel in mData.
-        for (int y = 0; y < mDibHeader.height; ++y) {
-            for (int x = 0; x < mDibHeader.width; ++x) {
-                // BGR -> BGRA
-                inp.read(reinterpret_cast<char *>(dataPtr), 3);
-                *(dataPtr + 3) = 255;
-                dataPtr += 4;
-            }
-            inp.read(reinterpret_cast<char *>(temp.data()), temp.size());
-        }
-        mDibHeader.bpp = 32;
-        mDibHeader.compression = 3;
-        break;
-    }
-    default: {
-        errExit("Invalid bit count when reading BMP file.");
-    }
-    }
+    // Update headers.
+    overwriteHeaders();
     mDibHeader.size_image = mData.size();
     mFileHeader.file_size += mData.size();
+}
+
+void BMP::convertTo4Channels()
+{
+    if (mDibHeader.bpp == 24) // Transform data to 32bit BGRA format.
+    {
+        vector<uint8_t> newData;
+        size_t pixels = mDibHeader.width * mDibHeader.height * 3;
+        for (size_t i = 0; i < pixels; i += 3) {
+            newData.push_back(mData[i]);
+            newData.push_back(mData[i + 1]);
+            newData.push_back(mData[i + 2]);
+            newData.push_back(255);
+        }
+        addData(mDibHeader.width, mDibHeader.height, newData);
+    }
 }
 
 void BMP::write(const char *file) const
@@ -266,8 +277,94 @@ void writeBmp(size_t width, size_t height, size_t channels,
     image.write(fileName);
 }
 
-vector<uint8_t> readBmp(const char *fileName)
+void writeBmp(size_t width, size_t height, size_t channels, uint8_t *data,
+              const char *fileName)
+{
+    BMP image;
+    size_t pixels = width * height * channels;
+    if (channels == 4) {
+        image.addData(width, height, data, pixels);
+    }
+    else if (channels == 3) {
+        vector<uint8_t> newData;
+        for (size_t i = 0; i < pixels; i += 3) {
+            newData.push_back(data[i + 2]);
+            newData.push_back(data[i + 1]);
+            newData.push_back(data[i]);
+            newData.push_back(255);
+        }
+        image.addData(width, height, newData);
+    }
+    else {
+        errExit("Invalid channels argument for creating bmp.");
+    }
+
+    image.write(fileName);
+}
+
+std::vector<uint8_t> decodeBmpData(const uint8_t *input, int width, int height,
+                                   int channels)
+{
+    // Calculate row_size for the BMP image; it may be padded if it is not a
+    // multiple of 4 bytes.
+    const int row_size = (8 * channels * width + 31) / 32 * 4;
+    // Data layout is top down if height is negative.
+    bool top_down = (height < 0);
+    if (top_down)
+        height *= -1;
+
+    std::vector<uint8_t> output(height * width * channels);
+    for (int i = 0; i < height; i++) {
+        int src_pos;
+        int dst_pos;
+
+        for (int j = 0; j < width; j++) {
+            if (!top_down) {
+                src_pos = ((height - 1 - i) * row_size) + j * channels;
+            }
+            else {
+                src_pos = i * row_size + j * channels;
+            }
+
+            dst_pos = (i * width + j) * channels;
+
+            switch (channels) {
+            case 1:
+                output[dst_pos] = input[src_pos];
+                break;
+            case 3:
+                // BGR -> RGB
+                output[dst_pos] = input[src_pos + 2];
+                output[dst_pos + 1] = input[src_pos + 1];
+                output[dst_pos + 2] = input[src_pos];
+                break;
+            case 4:
+                // BGRA -> RGBA
+                output[dst_pos] = input[src_pos + 2];
+                output[dst_pos + 1] = input[src_pos + 1];
+                output[dst_pos + 2] = input[src_pos];
+                output[dst_pos + 3] = input[src_pos + 3];
+                break;
+            default:
+                errExit("Unexpected number of channels: " +
+                        to_string(channels));
+                break;
+            }
+        }
+    }
+    return output;
+}
+
+std::vector<uint8_t> readBmp(const char *fileName, int *width, int *height,
+                             int *channels)
 {
     BMP image(fileName);
-    return image.getData();
+    if (width)
+        *width = image.getWidth();
+    if (height)
+        *height = image.getHeight();
+    if (channels)
+        *channels = image.getChannels();
+    return decodeBmpData(image.getData().data(), image.getWidth(),
+                         image.getHeight(), image.getChannels());
 }

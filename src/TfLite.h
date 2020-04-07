@@ -16,6 +16,7 @@ class TfLite {
     void printOps() const;
 
   private:
+    // Loads a BMP image into the loaded models input tensor.
     void loadBmpImage(const char *bmpFile);
     void printInputOutputInfo() const;
     void printInterpreterInfo() const;
