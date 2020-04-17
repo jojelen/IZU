@@ -3,8 +3,8 @@
 #include "tensorflow/lite/builtin_op_data.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
-#include "tensorflow/lite/optional_debug_tools.h" // For fancy printing of inte
-#include "tensorflow/lite/string_util.h"          // for resize
+#include "tensorflow/lite/optional_debug_tools.h"
+#include "tensorflow/lite/string_util.h"
 
 #include "opencv2/opencv.hpp"
 
@@ -15,26 +15,20 @@
 
 void errExit(const std::string_view &msg);
 
-// Functions from Tensorflow's example
+// Resizes image data by using the "resize" builtin operator in tflite.
 template <class T>
 void resize(T *out, uint8_t *in, int image_height, int image_width,
             int image_channels, int wanted_height, int wanted_width,
             int wanted_channels)
 {
-    int number_of_pixels = image_height * image_width * image_channels;
     std::unique_ptr<tflite::Interpreter> interpreter(new tflite::Interpreter);
 
-    int base_index = 0;
-
-    // two inputs: input and new_sizes
-    interpreter->AddTensors(2, &base_index);
-    // one output
-    interpreter->AddTensors(1, &base_index);
-    // set input and output tensors
+    // Add tensors. Two inputs: input and new_sizes and one output.
+    interpreter->AddTensors(3, nullptr);
     interpreter->SetInputs({0, 1});
     interpreter->SetOutputs({2});
 
-    // set parameters of tensors
+    // Set parameters of tensors.
     TfLiteQuantizationParams quant;
     interpreter->SetTensorParametersReadWrite(
         0, kTfLiteFloat32, "input",
@@ -45,9 +39,11 @@ void resize(T *out, uint8_t *in, int image_height, int image_width,
         2, kTfLiteFloat32, "output",
         {1, wanted_height, wanted_width, wanted_channels}, quant);
 
+    // Add the custom op that does the resizing.
     tflite::ops::builtin::BuiltinOpResolver resolver;
     const TfLiteRegistration *resize_op = resolver.FindOp(
         tflite::BuiltinOperator::BuiltinOperator_RESIZE_BILINEAR, 1);
+    // params is freed in AddNodeWithParameters().
     auto *params = reinterpret_cast<TfLiteResizeBilinearParams *>(
         malloc(sizeof(TfLiteResizeBilinearParams)));
     params->align_corners = false;
@@ -57,27 +53,26 @@ void resize(T *out, uint8_t *in, int image_height, int image_width,
 
     interpreter->AllocateTensors();
 
-    // fill input image
-    // in[] are integers, cannot do memcpy() directly
+    // Fill first input tensor with image data.
     auto input = interpreter->typed_tensor<float>(0);
+    int number_of_pixels = image_height * image_width * image_channels;
     for (int i = 0; i < number_of_pixels; i++) {
         input[i] = in[i];
     }
 
-    // fill new_sizes
+    // Fill second input tensor with the wanted image size.
     interpreter->typed_tensor<int>(1)[0] = wanted_height;
     interpreter->typed_tensor<int>(1)[1] = wanted_width;
 
     interpreter->Invoke();
 
+    // Fill out with the output data.
     auto output = interpreter->typed_tensor<float>(2);
+    bool floating = std::is_same_v<T, float>;
+    static const float input_mean = 0.;
+    static const float input_std = 1.;
     auto output_number_of_pixels =
         wanted_height * wanted_width * wanted_channels;
-
-    bool floating = false;
-    float input_mean = 0.;
-    float input_std = 1.;
-
     for (int i = 0; i < output_number_of_pixels; i++) {
         if (floating)
             out[i] = (output[i] - input_mean) / input_std;
@@ -131,3 +126,7 @@ void get_top_n(T *prediction, int prediction_size, size_t num_results,
 void ReadLabelsFile(const std::string &file_name,
                     std::vector<std::string> *result,
                     size_t *found_label_count);
+
+// Utility functions for OpenCV frames.
+void printFrameInfo(cv::Mat &frame);
+void paintRow(cv::Mat &frame, int row, int color);

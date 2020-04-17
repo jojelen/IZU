@@ -14,6 +14,7 @@ class TfLite {
     void runInference(const cv::Mat &frame);
 
     void printOps() const;
+    void setInputBmpExport(bool value) { mWriteInputBmp = value; }
 
   private:
     // Loads a BMP image into the loaded models input tensor.
@@ -24,4 +25,5 @@ class TfLite {
     void printTopResults() const;
     std::unique_ptr<tflite::FlatBufferModel> mModel;
     std::unique_ptr<tflite::Interpreter> mInterpreter;
+    bool mWriteInputBmp = false;
 };

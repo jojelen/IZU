@@ -13,80 +13,43 @@
 
 using namespace std;
 
-void printFrameInfo(cv::Mat &frame)
+void runImageClassification(const cv::Mat &frame)
 {
-    cout << "frame:\n";
-    cout << "cols = " << frame.cols << "\n";
-    cout << "rows = " << frame.rows << "\n";
-    cout << "size = " << frame.size << "\n";
-    printf("data = %p\n", (void *)frame.data);
-    cout << "dims = " << frame.dims << "\n";
-    cout << "type = " << frame.type() << "\n"; // 16=CV_8UC3
-    cout << "depth = " << frame.depth() << "\n";
-    cout << "channels = " << frame.channels() << "\n";
+    static bool initialized = false;
+    static TfLite tfLite;
 
-    uint8_t *data = frame.data;
-    for (int i = 0; i < 10; ++i) {
-        uint8_t r = *data;
-        uint8_t g = *(data + 1);
-        uint8_t b = *(data + 2);
-        cout << "pixel_" << i << " = (" << (int)r << ", " << (int)g << ", "
-             << (int)b << ")\n";
-        data += 3;
+    if (!initialized) {
+        tfLite.loadModel("res/mobilenet_v2_1.0_224_quant.tflite");
+        tfLite.setInputBmpExport(false);
     }
-}
 
-void paintRow(cv::Mat &frame, int row, int color)
-{
-    uint8_t *data = frame.data;
-    size_t width = frame.cols;
-    size_t height = frame.rows;
-
-    for (int i = 0; i < width; ++i)
-        for (int j = 0; j < height; ++j) {
-            *data = 255;
-            *(data + 1) = 0;
-            *(data + 3) = 0;
-            data += 3;
-        }
+    tfLite.runInference(frame);
 }
 
 void showWebCam()
 {
     cv::VideoCapture cap;
-    // open the default camera, use something different from 0 otherwise;
-    // Check VideoCapture documentation.
-    if (!cap.open(0))
+    if (!cap.open(0 /* Default camera */))
         return;
 
-    TfLite tfLite;
-    tfLite.loadModel("res/mobilenet_v2_1.0_224_quant.tflite");
+    unsigned frameCount = 0;
     for (;;) {
         cv::Mat frame, RGBframe;
         cap >> frame;
         if (frame.empty())
             break;
         cv::cvtColor(frame, RGBframe, CV_BGR2RGB);
-        tfLite.runInference(RGBframe);
+
+        if (frameCount++ % 10 == 0)
+            runImageClassification(RGBframe);
 
         // printFrameInfo(frame);
         // paintRow(frame, 0, 0);
         cv::namedWindow("Webcam");
         cv::imshow("Webcam", frame);
-        if (cv::waitKey(10) == 27)
+        if (cv::waitKey(10) == 27 /* ESC key */)
             break;
     }
-}
-
-cv::Mat getFrame()
-{
-    cv::VideoCapture cap;
-    cv::Mat frame;
-    // if (!cap.open(0))
-    //  return frame;
-    cap >> frame;
-
-    return frame;
 }
 
 int main(int argc, char **argv)
