@@ -12,15 +12,16 @@ class TfLite {
     void loadModel(const char *modelFile);
     void runInference(const char *inputFile);
     void runInference(const cv::Mat &frame);
+    std::vector<TfLiteTensor *> getOutputs() const;
 
     void printOps() const;
+    void printInputOutputInfo() const;
     void setInputBmpExport(bool value) { mWriteInputBmp = value; }
 
   private:
     // Loads a BMP image into the loaded models input tensor.
     void loadBmpImage(const char *bmpFile);
     void loadFrame(const cv::Mat &frame);
-    void printInputOutputInfo() const;
     void printInterpreterInfo() const;
     void printTopResults() const;
     std::unique_ptr<tflite::FlatBufferModel> mModel;

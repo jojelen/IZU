@@ -81,8 +81,20 @@ void TfLite::runInference(const cv::Mat &frame)
     if (mInterpreter->Invoke() != kTfLiteOk)
         errExit("Failed to invoke tflite.");
 
-    printTopResults();
+    // printTopResults();
 }
+
+std::vector<TfLiteTensor *> TfLite::getOutputs() const
+{
+    const vector<int> outputs = mInterpreter->outputs();
+    vector<TfLiteTensor *> outputTensors;
+
+    for (auto &o : outputs)
+        outputTensors.push_back(mInterpreter->tensor(o));
+
+    return outputTensors;
+}
+
 void TfLite::printInputOutputInfo() const
 {
     const vector<int> inputs = mInterpreter->inputs();
