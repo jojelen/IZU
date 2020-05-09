@@ -131,39 +131,27 @@ void TfLite::loadFrame(const cv::Mat &frame)
 
     int input = inputs[0]; // Index of input tensor;
 
-    TfLiteIntArray *dims = mInterpreter->tensor(input)->dims;
-
-    int wanted_height = dims->data[1];
-    int wanted_width = dims->data[2];
-    int wanted_channels = dims->data[3];
-
-    // Create uint8 vector of frame
-    int image_width = frame.cols;
-    int image_height = frame.rows;
-    int image_channels = 3;
-    // cout << "image_width = " << image_width << "\n";
-    // cout << "image_height = " << image_height << "\n";
-    // cout << "image_channels = " << image_channels << "\n";
-
-    switch (mInterpreter->tensor(input)->type) {
-    case kTfLiteFloat32:
-        resize<float>(mInterpreter->typed_tensor<float>(input), frame.data,
-                      image_height, image_width, image_channels, wanted_height,
-                      wanted_width, wanted_channels);
-        break;
-    case kTfLiteUInt8:
-        resize<uint8_t>(mInterpreter->typed_tensor<uint8_t>(input), frame.data,
-                        image_height, image_width, image_channels,
-                        wanted_height, wanted_width, wanted_channels);
-        break;
-    default:
-        cout << "cannot handle input type " << mInterpreter->tensor(input)->type
-             << " yet";
-        exit(-1);
+    size_t frameSize = frame.total() * frame.elemSize();
+    size_t inputSize = mInterpreter->tensor(input)->bytes;
+    if (frameSize != inputSize) {
+        errExit("Frame's byte size doesn't match the models input.");
     }
-    if (mWriteInputBmp)
-        writeBmp(wanted_width, wanted_height, wanted_channels,
+    uint8_t *inputDataPtr = mInterpreter->typed_tensor<uint8_t>(input);
+
+    // Assuming same layout:
+    for (size_t i = 0; i < inputSize; ++i) {
+        *(inputDataPtr + i) = *(frame.data + i);
+    }
+
+    if (mWriteInputBmp) {
+        TfLiteIntArray *dims = mInterpreter->tensor(input)->dims;
+
+        int height = dims->data[1];
+        int width = dims->data[2];
+        int channels = dims->data[3];
+        writeBmp(width, height, channels,
                  mInterpreter->typed_tensor<uint8_t>(input), "temp.bmp");
+    }
 }
 void TfLite::loadBmpImage(const char *bmpFile)
 {
