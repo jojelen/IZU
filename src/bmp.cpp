@@ -255,6 +255,8 @@ void BMP::printInfo() const
 void writeBmp(size_t width, size_t height, size_t channels,
               const std::vector<uint8_t> &data, const char *fileName)
 {
+    TIMER
+
     BMP image;
     if (channels == 4) {
         image.addData(width, height, data);
@@ -280,6 +282,8 @@ void writeBmp(size_t width, size_t height, size_t channels,
 void writeBmp(size_t width, size_t height, size_t channels, uint8_t *data,
               const char *fileName)
 {
+    TIMER
+
     BMP image;
     size_t pixels = width * height * channels;
     if (channels == 4) {

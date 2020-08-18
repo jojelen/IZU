@@ -17,6 +17,7 @@ using namespace std;
 
 void runImageClassification(const cv::Mat &frame)
 {
+    TIMER
     static bool initialized = false;
     static TfLite tfLite;
 
@@ -35,12 +36,15 @@ void addText(cv::Mat &frame, float classId, float score, float top, float left,
 
 void addBox(cv::Mat &frame, float top, float left, float bottom, float right)
 {
+    TIMER
     cv::rectangle(frame, cv::Point(left, top), cv::Point(right, bottom),
                   cv::Scalar(0, 255, 0));
 }
 
 vector<TfLiteTensor *> runObjectDetection(cv::Mat &frame)
 {
+    TIMER
+
     static bool initialized = false;
     static TfLite tfLite;
 
@@ -58,6 +62,8 @@ vector<TfLiteTensor *> runObjectDetection(cv::Mat &frame)
 
 vector<string> createClassMap(const string &classesFile)
 {
+    TIMER
+
     ifstream file(classesFile);
     string line;
     vector<string> classesMap;
@@ -70,6 +76,8 @@ vector<string> createClassMap(const string &classesFile)
 
 void ssdPostProcessing(cv::Mat &frame, vector<TfLiteTensor *> &output)
 {
+    TIMER
+
     // Here, we assume the output to be as in COCO SSD MobileNet v1: Four
     // tensors that specify.
     // 0. Locations: Multidimensional array of [10][4] floating point values
@@ -129,14 +137,25 @@ void showWebCam()
 
     unsigned frameCount = 0;
     for (;;) {
+#ifdef TIME
+        Timer timer("1 frame");
+#endif
+
         cv::Mat frame, RGBframe, resized;
         cap >> frame;
         if (frame.empty())
             break;
-        cv::cvtColor(frame, RGBframe, CV_BGR2RGB);
+#ifdef TIME
+        {
+            Timer timer("pre-processing");
+#endif
+            cv::cvtColor(frame, RGBframe, CV_BGR2RGB);
 
-        cv::resize(RGBframe, resized, cv::Size(300, 300), 0, 0,
-                   cv::INTER_CUBIC);
+            cv::resize(RGBframe, resized, cv::Size(300, 300), 0, 0,
+                       cv::INTER_CUBIC);
+#ifdef TIME
+        }
+#endif
         auto output = runObjectDetection(resized);
         ssdPostProcessing(frame, output);
 
@@ -150,6 +169,8 @@ void showWebCam()
 
 int main(int argc, char **argv)
 {
+    TIMER
+
     showWebCam();
 
     return 0;

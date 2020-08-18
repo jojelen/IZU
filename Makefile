@@ -3,7 +3,7 @@ CXX = g++
 # Optimisation level, eg: -O3
 OPT=-O3
 # Compiler flags
-CXXFLAGS=-std=c++17 -Wall $(OPT) -w -pthread
+CXXFLAGS=-std=c++17 -Wall $(OPT) -w -pthread -DTIME
 
 # Location of .obj and .a files
 BINDIR=build

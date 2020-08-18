@@ -130,3 +130,24 @@ void ReadLabelsFile(const std::string &file_name,
 // Utility functions for OpenCV frames.
 void printFrameInfo(cv::Mat &frame);
 void paintRow(cv::Mat &frame, int row, int color);
+
+// Prints the time since construction at time of destruction.
+class Timer {
+  public:
+    Timer();
+    Timer(std::string &&msg);
+    ~Timer();
+
+    void printDuration() const;
+
+  private:
+    std::chrono::steady_clock::time_point mStart;
+    std::string mMessage;
+};
+
+// Convenience macro for timing a function.
+#ifdef TIME
+#define TIMER Timer timer(__FUNCTION__);
+#else
+#define TIMER
+#endif

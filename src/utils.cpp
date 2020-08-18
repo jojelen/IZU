@@ -68,3 +68,46 @@ void paintRow(cv::Mat &frame, int row, int color)
             data += 3;
         }
 }
+
+Timer::Timer() : mMessage("Timer:")
+{
+    mStart = std::chrono::steady_clock::now();
+}
+
+Timer::Timer(std::string &&msg) : mMessage(msg)
+{
+    mStart = std::chrono::steady_clock::now();
+}
+
+Timer::~Timer()
+{
+  printDuration();
+}
+
+void Timer::printDuration() const
+{
+    auto mEnd = std::chrono::steady_clock::now();
+    std::chrono::duration<double> duration = mEnd - mStart;
+    auto ns =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
+    if (ns < 1e6) {
+        cout << mMessage << ": " << ns << " ns\n";
+    }
+    else if (ns >= 1e6 && ns <= 1e9) {
+        auto ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+                .count();
+        cout << mMessage << ": " << ms << " ms\n";
+    }
+    else {
+        size_t sec = static_cast<size_t>(
+            std::chrono::duration_cast<std::chrono::seconds>(duration).count());
+
+        size_t min = sec / 60;
+        size_t hours = min / 60;
+        min %= 60;
+        sec = sec - 60 * 60 * hours - 60 * min;
+        cout << mMessage << ": " << hours << " h " << min << " m " << sec
+             << " s\n";
+    }
+}

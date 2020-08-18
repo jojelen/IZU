@@ -15,6 +15,8 @@ TfLite::~TfLite() {}
 
 void TfLite::loadModel(const char *modelFile)
 {
+    TIMER
+
     mModel = tflite::FlatBufferModel::BuildFromFile(modelFile);
     if (!mModel)
         errExit("Couldn't build model from " + string(modelFile));
@@ -38,6 +40,8 @@ void TfLite::printInterpreterInfo() const
 
 void TfLite::runInference(const char *inputFile)
 {
+    TIMER
+
     if (mInterpreter->AllocateTensors() != kTfLiteOk)
         errExit("Failed allocating tensors.");
 
@@ -72,15 +76,23 @@ void TfLite::printOps() const
 
 void TfLite::runInference(const cv::Mat &frame)
 {
-    if (mInterpreter->AllocateTensors() != kTfLiteOk)
-        errExit("Failed allocating tensors.");
+        if (mInterpreter->AllocateTensors() != kTfLiteOk)
+            errExit("Failed allocating tensors.");
 
     loadFrame(frame);
 
-    // Running inference
-    if (mInterpreter->Invoke() != kTfLiteOk)
-        errExit("Failed to invoke tflite.");
+    // Running inference.
+#ifdef TIME
+    {
+        Timer timer("Invoke()");
+#endif
+        if (mInterpreter->Invoke() != kTfLiteOk)
+            errExit("Failed to invoke tflite.");
+#ifdef TIME
+    }
+#endif
 
+    // Used for image classification.
     // printTopResults();
 }
 
@@ -126,6 +138,8 @@ void TfLite::printInputOutputInfo() const
 
 void TfLite::loadFrame(const cv::Mat &frame)
 {
+    TIMER
+
     const vector<int> inputs = mInterpreter->inputs();
     const vector<int> outputs = mInterpreter->outputs();
 
@@ -153,6 +167,7 @@ void TfLite::loadFrame(const cv::Mat &frame)
                  mInterpreter->typed_tensor<uint8_t>(input), "temp.bmp");
     }
 }
+
 void TfLite::loadBmpImage(const char *bmpFile)
 {
     const vector<int> inputs = mInterpreter->inputs();
