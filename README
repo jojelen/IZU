@@ -13,5 +13,6 @@ This is a sandbox repo for playing around with tensorflow lite.
 
 * Tensorflow lite
     -> install by running
+        tensorflow/lite/tools/make/download_dependencies.sh &&
         make -f tensorflow/lite/tools/make/Makefile TARGET=linux
     This creates a static lib that one has to link to.
