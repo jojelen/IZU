@@ -26,6 +26,8 @@ void TfLite::loadModel(const char *modelFile)
     if (!mInterpreter)
         errExit("Couldn't build interpreter.");
 
+    // Increases performance on x86 to half the inference time.
+    mInterpreter->SetNumThreads(4);
     printInterpreterInfo();
 }
 
