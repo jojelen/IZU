@@ -30,7 +30,10 @@ LDFLAGS+=-L/usr/local/lib `pkg-config --cflags --libs opencv`
 
 # Tensorflow Lite
 CXXFLAGS+=-Ideps/include
-LDFLAGS+=-Ldeps/lib -ltensorflow-lite
+LDFLAGS+=-Ldeps/lib -ltensorflowlite
+
+# Tensorflow Lite GPU delegate
+LDFLAGS+=-ltensorflowlite_gpu_gl `pkg-config --cflags --libs egl glesv2`
 
 LIBNAME=IZU
 LIBS=lib$(LIBNAME).a

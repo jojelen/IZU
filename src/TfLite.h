@@ -1,6 +1,7 @@
 #pragma once
 
 #include "opencv2/opencv.hpp"
+#include "tensorflow/lite/delegates/gpu/gl_delegate.h"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/model.h"
 
@@ -26,5 +27,8 @@ class TfLite {
     void printTopResults() const;
     std::unique_ptr<tflite::FlatBufferModel> mModel;
     std::unique_ptr<tflite::Interpreter> mInterpreter;
+    std::unique_ptr<TfLiteDelegate, std::function<void(TfLiteDelegate *)>>
+        mDelegate{nullptr,
+                  [](TfLiteDelegate *d) { TfLiteGpuDelegateDelete(d); }};
     bool mWriteInputBmp = false;
 };

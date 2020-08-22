@@ -26,6 +26,20 @@ void TfLite::loadModel(const char *modelFile)
     if (!mInterpreter)
         errExit("Couldn't build interpreter.");
 
+    const TfLiteGpuDelegateOptions options = {
+        .metadata = NULL,
+        .compile_options =
+            {
+                .precision_loss_allowed = 1,
+                .preferred_gl_object_type = TFLITE_GL_OBJECT_TYPE_FASTEST,
+                .dynamic_batch_enabled = 0,
+                .inline_parameters = 0,
+            },
+    };
+    mDelegate.reset(TfLiteGpuDelegateCreate(&options));
+    if (mInterpreter->ModifyGraphWithDelegate(mDelegate.get()) != kTfLiteOk)
+        errExit("Couldn't modify graph with gpu delegate.");
+
     // Increases performance on x86 to half the inference time.
     mInterpreter->SetNumThreads(4);
     printInterpreterInfo();

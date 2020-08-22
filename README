@@ -16,3 +16,6 @@ This is a sandbox repo for playing around with tensorflow lite.
         tensorflow/lite/tools/make/download_dependencies.sh &&
         make -f tensorflow/lite/tools/make/Makefile TARGET=linux
     This creates a static lib that one has to link to.
+
+    -> GPU delegate:
+        Compile libtensorflowlite_gpu_gl.so.
