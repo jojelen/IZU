@@ -29,17 +29,6 @@ void runImageClassification(const cv::Mat &frame)
 
     tfLite.runInference(frame);
 }
-void addText(cv::Mat &frame, float classId, float score, float top, float left,
-             float bottom, float right)
-{
-}
-
-void addBox(cv::Mat &frame, float top, float left, float bottom, float right)
-{
-    TIMER
-    cv::rectangle(frame, cv::Point(left, top), cv::Point(right, bottom),
-                  cv::Scalar(0, 255, 0));
-}
 
 vector<TfLiteTensor *> runObjectDetection(cv::Mat &frame)
 {
@@ -51,7 +40,7 @@ vector<TfLiteTensor *> runObjectDetection(cv::Mat &frame)
     if (!initialized) {
         tfLite.loadModel("res/detect.tflite");
         tfLite.printInputOutputInfo();
-        tfLite.setInputBmpExport(true);
+        tfLite.setInputBmpExport(false);
         initialized = true;
     }
 
@@ -74,7 +63,7 @@ vector<string> createClassMap(const string &classesFile)
     return classesMap;
 }
 
-void ssdPostProcessing(cv::Mat &frame, vector<TfLiteTensor *> &output)
+void postProcessing(cv::Mat &frame, vector<TfLiteTensor *> &output)
 {
     TIMER
 
@@ -135,16 +124,20 @@ void showWebCam()
     if (!cap.open(0 /* Default camera */))
         return;
 
-    unsigned frameCount = 0;
+    cv::namedWindow("Webcam");
+    cv::Mat frame, RGBframe, resized;
+    vector<TfLiteTensor *> output;
+    size_t frame_nr = 0;
     for (;;) {
 #ifdef TIME
         Timer timer("1 frame");
 #endif
 
-        cv::Mat frame, RGBframe, resized;
         cap >> frame;
         if (frame.empty())
             break;
+
+        if (frame_nr % 2 == 0) {
 #ifdef TIME
         {
             Timer timer("pre-processing");
@@ -156,14 +149,17 @@ void showWebCam()
 #ifdef TIME
         }
 #endif
-        auto output = runObjectDetection(resized);
-        ssdPostProcessing(frame, output);
+            output = runObjectDetection(resized);
+        }
 
-        cv::namedWindow("Webcam");
+        postProcessing(frame, output);
+
         cv::imshow("Webcam", frame);
 
         if (cv::waitKey(10) == 27 /* ESC key */)
             break;
+
+        ++frame_nr;
     }
 }
 
